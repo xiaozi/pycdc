@@ -27,6 +27,7 @@ DECLARE_PYTHON(3, 0)
 DECLARE_PYTHON(3, 1)
 DECLARE_PYTHON(3, 2)
 DECLARE_PYTHON(3, 3)
+DECLARE_PYTHON(3, 4)
 
 const char* Pyc::OpcodeName(int opcode)
 {
@@ -65,7 +66,7 @@ const char* Pyc::OpcodeName(int opcode)
     "POP_JUMP_IF_FALSE", "POP_JUMP_IF_TRUE", "CONTINUE_LOOP", "MAKE_CLOSURE",
     "LOAD_CLOSURE", "LOAD_DEREF", "STORE_DEREF", "DELETE_DEREF",
     "EXTENDED_ARG", "SETUP_WITH", "SET_ADD", "MAP_ADD", "UNPACK_EX",
-    "LIST_APPEND"
+    "LIST_APPEND", "LOAD_CLASSDEREF",
     };
 
     if (opcode < 0)
@@ -110,6 +111,7 @@ int Pyc::ByteToOpcode(int maj, int min, int opcode)
         case 1: return python_31_map(opcode);
         case 2: return python_32_map(opcode);
         case 3: return python_33_map(opcode);
+        case 4: return python_34_map(opcode);
         }
         break;
     }
@@ -156,14 +158,21 @@ void print_const(PycRef<PycObject> obj, PycModule* mod)
 {
     switch (obj->type()) {
     case PycObject::TYPE_STRING:
-    case PycObject::TYPE_STRINGREF:
-    case PycObject::TYPE_INTERNED:
         OutputString(obj.cast<PycString>(), (mod->majorVer() == 3) ? 'b' : 0);
         break;
     case PycObject::TYPE_UNICODE:
         OutputString(obj.cast<PycString>(), (mod->majorVer() == 3) ? 0 : 'u');
         break;
+    case PycObject::TYPE_STRINGREF:
+    case PycObject::TYPE_INTERNED:
+    case PycObject::TYPE_ASCII:
+    case PycObject::TYPE_ASCII_INTERNED:
+    case PycObject::TYPE_SHORT_ASCII:
+    case PycObject::TYPE_SHORT_ASCII_INTERNED:
+        OutputString(obj.cast<PycString>(), 0);
+        break;
     case PycObject::TYPE_TUPLE:
+    case PycObject::TYPE_SMALL_TUPLE:
         {
             fprintf(pyc_output, "(");
             PycTuple::value_t values = obj.cast<PycTuple>()->values();

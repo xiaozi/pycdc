@@ -25,13 +25,14 @@ enum PycMagic {
     MAGIC_3_1 = 0x0A0D0C4E,
     MAGIC_3_2 = 0x0A0D0C6C,
     MAGIC_3_3 = 0x0A0D0C9E,
+    MAGIC_3_4 = 0x0A0D0CE4,
 };
 
 #define PYC_VERSION(maj, min)  MAGIC_##maj##_##min
 
 class PycModule {
 public:
-    PycModule();
+    PycModule() : m_maj(-1), m_min(-1), m_unicode(false) { }
 
     void loadFromFile(const char* filename);
     bool isValid() const { return (m_maj >= 0) && (m_min >= 0); }
@@ -51,7 +52,10 @@ public:
     PycRef<PycCode> code() const { return m_code; }
 
     void intern(PycRef<PycString> str) { m_interns.push_back(str); }
-    PycRef<PycString> getIntern(int ref);
+    PycRef<PycString> getIntern(int ref) const;
+
+    void refObject(PycRef<PycObject> str) { m_refs.push_back(str); }
+    PycRef<PycObject> getRef(int ref) const;
 
 private:
     void setVersion(unsigned int magic);
@@ -62,6 +66,7 @@ private:
 
     PycRef<PycCode> m_code;
     std::list<PycRef<PycString> > m_interns;
+    std::list<PycRef<PycObject> > m_refs;
 };
 
 #endif

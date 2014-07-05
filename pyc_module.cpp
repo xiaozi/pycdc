@@ -1,10 +1,6 @@
 #include "pyc_module.h"
 #include "data.h"
 
-PycModule::PycModule()
-    : m_maj(-1), m_min(-1), m_unicode(false)
-{ }
-
 void PycModule::setVersion(unsigned int magic)
 {
     // Default for versions that don't support unicode selection
@@ -122,6 +118,12 @@ void PycModule::setVersion(unsigned int magic)
         m_unicode = true;
         break;
 
+    case MAGIC_3_4:
+        m_maj = 3;
+        m_min = 4;
+        m_unicode = true;
+        break;
+
     /* Bad Magic detected */
     default:
         m_maj = -1;
@@ -149,9 +151,18 @@ void PycModule::loadFromFile(const char* filename)
     m_code = LoadObject(&in, this).cast<PycCode>();
 }
 
-PycRef<PycString> PycModule::getIntern(int ref)
+PycRef<PycString> PycModule::getIntern(int ref) const
 {
     std::list<PycRef<PycString> >::const_iterator it = m_interns.begin();
-    for (int i=0; i<ref; i++, it++) /* move forward to ref */ ;
+    while (ref--)
+        ++it;
+    return *it;
+}
+
+PycRef<PycObject> PycModule::getRef(int ref) const
+{
+    std::list<PycRef<PycObject> >::const_iterator it = m_refs.begin();
+    while (ref--)
+        ++it;
     return *it;
 }

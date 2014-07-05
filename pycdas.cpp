@@ -113,8 +113,6 @@ void output_object(PycRef<PycObject> obj, PycModule* mod, int indent)
         }
         break;
     case PycObject::TYPE_STRING:
-    case PycObject::TYPE_STRINGREF:
-    case PycObject::TYPE_INTERNED:
         iprintf(indent, "");
         OutputString(obj.cast<PycString>(), (mod->majorVer() == 3) ? 'b' : 0);
         fprintf(pyc_output, "\n");
@@ -124,7 +122,18 @@ void output_object(PycRef<PycObject> obj, PycModule* mod, int indent)
         OutputString(obj.cast<PycString>(), (mod->majorVer() == 3) ? 0 : 'u');
         fprintf(pyc_output, "\n");
         break;
+    case PycObject::TYPE_STRINGREF:
+    case PycObject::TYPE_INTERNED:
+    case PycObject::TYPE_ASCII:
+    case PycObject::TYPE_ASCII_INTERNED:
+    case PycObject::TYPE_SHORT_ASCII:
+    case PycObject::TYPE_SHORT_ASCII_INTERNED:
+        iprintf(indent, "");
+        OutputString(obj.cast<PycString>(), 0);
+        fprintf(pyc_output, "\n");
+        break;
     case PycObject::TYPE_TUPLE:
+    case PycObject::TYPE_SMALL_TUPLE:
         {
             iprintf(indent, "(\n");
             PycTuple::value_t values = obj.cast<PycTuple>()->values();
