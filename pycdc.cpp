@@ -23,7 +23,7 @@ int main(int argc, char* argv[])
     const char* dispname = strrchr(argv[1], PATHSEP);
     dispname = (dispname == NULL) ? argv[1] : dispname + 1;
     // # just set a different filename
-    freopen("aaa.py", "w", pyc_output);
+    // freopen("aaa.py", "w", pyc_output);
     // fprintf(pyc_output, "# Source Generated with Decompyle++\n");
     fprintf(pyc_output, "#!/usr/bin/env python\n");
     fprintf(pyc_output, "# visit http://tool.lu/pyc/ for more information\n");
