@@ -15,9 +15,12 @@ static bool inPrint;
 /* Use this to prevent printing return keywords and newlines in lambdas. */
 static bool inLambda = false;
 
-/* Use this to keep track of whether we need to print out the list of global
- * variables that we are using (such as inside a function). */
-static bool printGlobals = false;
+/* Use this to keep track of whether we need to print out any docstring and
+ * the list of global variables that we are using (such as inside a function). */
+static bool printDocstringAndGlobals = false;
+
+/* Use this to keep track of whether we need to print a class or module docstring */
+static bool printClassDocstring = true;
 
 PycRef<ASTNode> BuildFromCode(PycRef<PycCode> code, PycModule* mod)
 {
@@ -29,7 +32,7 @@ PycRef<ASTNode> BuildFromCode(PycRef<PycCode> code, PycModule* mod)
     std::stack<PycRef<ASTBlock> > blocks;
     PycRef<ASTBlock> defblock = new ASTBlock(ASTBlock::BLK_MAIN);
     defblock->init();
-    PycRef<ASTBlock>& curblock = defblock;
+    PycRef<ASTBlock> curblock = defblock;
     blocks.push(defblock);
 
     int opcode, operand;
@@ -364,6 +367,43 @@ PycRef<ASTNode> BuildFromCode(PycRef<PycCode> code, PycModule* mod)
                 int pparams = (operand & 0xFF);
                 ASTCall::kwparam_t kwparamList;
                 ASTCall::pparam_t pparamList;
+
+                /* Test for the load build class function */
+                stack_hist.push(stack);
+                int basecnt = 0;
+                ASTTuple::value_t bases;
+                bases.resize(basecnt);
+                PycRef<ASTNode> TOS = stack.top();
+                int TOS_type = TOS->type();
+                // bases are NODE_NAME at TOS
+                while (TOS_type == ASTNode::NODE_NAME) {
+                    bases.resize(basecnt + 1);
+                    bases[basecnt] = TOS;
+                    basecnt++;
+                    stack.pop();
+                    TOS = stack.top();
+                    TOS_type = TOS->type();
+                }
+                // qualified name is PycString at TOS
+                PycRef<ASTNode> name = stack.top();
+                stack.pop();
+                PycRef<ASTNode> function = stack.top();
+                stack.pop();
+                PycRef<ASTNode> loadbuild = stack.top();
+                stack.pop();
+                int loadbuild_type = loadbuild->type();
+                if (loadbuild_type == ASTNode::NODE_LOADBUILDCLASS) {
+                    PycRef<ASTNode> call = new ASTCall(function, pparamList, kwparamList);
+                    stack.push(new ASTClass(call, new ASTTuple(bases), name));
+                    stack_hist.pop();
+                    break;
+                }
+                else
+                {
+                    stack = stack_hist.top();
+                    stack_hist.pop();
+                }
+
                 for (int i=0; i<kwparams; i++) {
                     PycRef<ASTNode> val = stack.top();
                     stack.pop();
@@ -1258,6 +1298,15 @@ PycRef<ASTNode> BuildFromCode(PycRef<PycCode> code, PycModule* mod)
             {
                 PycRef<ASTNode> code = stack.top();
                 stack.pop();
+
+                /* Test for the qualified name of the function (at TOS) */
+                int tos_type = code.cast<ASTObject>()->object()->type();
+                if (tos_type != PycObject::TYPE_CODE &&
+                    tos_type != PycObject::TYPE_CODE2) {
+                    code = stack.top();
+                    stack.pop();
+                }
+
                 ASTFunction::defarg_t defArgs;
                 for (int i=0; i<operand; i++) {
                     defArgs.push_front(stack.top());
@@ -2009,6 +2058,11 @@ PycRef<ASTNode> BuildFromCode(PycRef<PycCode> code, PycModule* mod)
                 curblock->append(new ASTReturn(value, ASTReturn::YIELD));
             }
             break;
+        case Pyc::LOAD_BUILD_CLASS:
+            {
+                stack.push(new ASTLoadBuildClass(new PycObject()));
+            }
+            break;
         default:
             fprintf(stderr, "Unsupported opcode: %s\n", Pyc::OpcodeName(opcode & 0xFF));
             cleanBuild = false;
@@ -2576,7 +2630,7 @@ void print_src(PycRef<ASTNode> node, PycModule* mod)
                     fprintf(pyc_output, ": ");
                 } else {
                     fprintf(pyc_output, "):\n");
-                    printGlobals = true;
+                    printDocstringAndGlobals = true;
                 }
 
                 bool preLambda = inLambda;
@@ -2605,6 +2659,7 @@ void print_src(PycRef<ASTNode> node, PycModule* mod)
                     // Don't put parens if there are no base classes
                     fprintf(pyc_output, ":\n");
                 }
+                printClassDocstring = true;
                 PycRef<ASTNode> code = src.cast<ASTClass>()->code().cast<ASTCall>()
                                        ->func().cast<ASTFunction>()->code();
                 print_src(code, mod);
@@ -2645,38 +2700,13 @@ void print_src(PycRef<ASTNode> node, PycModule* mod)
                         print_src(dest, mod);
                     }
                 }
+            } else if (src->type() == ASTNode::NODE_BINARY &&
+                    src.cast<ASTBinary>()->is_inplace() == true) {
+                print_src(src, mod);
             } else {
-                if (src->type() == ASTNode::NODE_BINARY &&
-                        src.cast<ASTBinary>()->is_inplace() == true) {
-                    print_src(src, mod);
-                    break;
-                }
-
-                if (dest->type() == ASTNode::NODE_NAME &&
-                    dest.cast<ASTName>()->name()->isEqual("__doc__")) {
-                    if (src->type() == ASTNode::NODE_OBJECT) {
-                        PycRef<PycObject> obj = src.cast<ASTObject>()->object();
-                        if (obj->type() == PycObject::TYPE_STRING)
-                            OutputString(obj.cast<PycString>(), (mod->majorVer() == 3) ? 'b' : 0, true);
-                        else if (obj->type() == PycObject::TYPE_UNICODE)
-                            OutputString(obj.cast<PycString>(), (mod->majorVer() == 3) ? 0 : 'u', true);
-                        else if (obj->type() == PycObject::TYPE_INTERNED ||
-                                 obj->type() == PycObject::TYPE_STRINGREF ||
-                                 obj->type() == PycObject::TYPE_ASCII ||
-                                 obj->type() == PycObject::TYPE_ASCII_INTERNED ||
-                                 obj->type() == PycObject::TYPE_SHORT_ASCII ||
-                                 obj->type() == PycObject::TYPE_SHORT_ASCII_INTERNED)
-                            OutputString(obj.cast<PycString>(), 0, true);
-                    } else {
-                        print_src(dest, mod);
-                        fprintf(pyc_output, " = ");
-                        print_src(src, mod);
-                    }
-                } else {
-                    print_src(dest, mod);
-                    fprintf(pyc_output, " = ");
-                    print_src(src, mod);
-                }
+                print_src(dest, mod);
+                fprintf(pyc_output, " = ");
+                print_src(src, mod);
             }
         }
         break;
@@ -2722,6 +2752,30 @@ void print_src(PycRef<ASTNode> node, PycModule* mod)
     cleanBuild = true;
 }
 
+bool print_docstring(PycRef<PycObject> obj, int indent, PycModule* mod)
+{
+    // docstrings are translated from the bytecode __doc__ = 'string' to simply '''string'''
+    signed char prefix = -1;
+    if (obj->type() == PycObject::TYPE_STRING)
+        prefix = mod->majorVer() == 3 ? 'b' : 0;
+    else if (obj->type() == PycObject::TYPE_UNICODE)
+        prefix = mod->majorVer() == 3 ? 0 : 'u';
+    else if (obj->type() == PycObject::TYPE_INTERNED ||
+            obj->type() == PycObject::TYPE_STRINGREF ||
+            obj->type() == PycObject::TYPE_ASCII ||
+            obj->type() == PycObject::TYPE_ASCII_INTERNED ||
+            obj->type() == PycObject::TYPE_SHORT_ASCII ||
+            obj->type() == PycObject::TYPE_SHORT_ASCII_INTERNED)
+        prefix = 0;
+    if (prefix != -1) {
+        start_line(indent);
+        OutputString(obj.cast<PycString>(), prefix, true);
+        fprintf(pyc_output, "\n");
+        return true;
+    } else
+        return false;
+}
+
 void decompyle(PycRef<PycCode> code, PycModule* mod)
 {
     PycRef<ASTNode> source = BuildFromCode(code, mod);
@@ -2745,6 +2799,17 @@ void decompyle(PycRef<PycCode> code, PycModule* mod)
                 }
             }
         }
+        // Class and module docstrings may only appear at the beginning of their source
+        if (printClassDocstring && clean->nodes().front()->type() == ASTNode::NODE_STORE) {
+            PycRef<ASTStore> store = clean->nodes().front().cast<ASTStore>();
+            if (store->dest()->type() == ASTNode::NODE_NAME &&
+                    store->dest().cast<ASTName>()->name()->isEqual("__doc__") &&
+                    store->src()->type() == ASTNode::NODE_OBJECT) {
+                if (print_docstring(store->src().cast<ASTObject>()->object(),
+                        cur_indent + (code->name()->isEqual("<module>") ? 0 : 1), mod))
+                    clean->removeFirst();
+            }
+        }
         if (clean->nodes().back()->type() == ASTNode::NODE_RETURN) {
             PycRef<ASTReturn> ret = clean->nodes().back().cast<ASTReturn>();
 
@@ -2753,6 +2818,8 @@ void decompyle(PycRef<PycCode> code, PycModule* mod)
             }
         }
     }
+    if (printClassDocstring)
+        printClassDocstring = false;
     // This is outside the clean check so a source block will always
     // be compilable, even if decompylation failed.
     if (clean->nodes().size() == 0)
@@ -2761,20 +2828,25 @@ void decompyle(PycRef<PycCode> code, PycModule* mod)
     inPrint = false;
     bool part1clean = cleanBuild;
 
-    PycCode::globals_t globs = code->getGlobals();
-    if (printGlobals && globs.size()) {
-        start_line(cur_indent+1);
-        fprintf(pyc_output, "global ");
-        bool first = true;
-        PycCode::globals_t::iterator it;
-        for (it = globs.begin(); it != globs.end(); ++it) {
-            if (!first)
-                fprintf(pyc_output, ", ");
-            fprintf(pyc_output, "%s", (*it)->value());
-            first = false;
+    if (printDocstringAndGlobals) {
+        if (code->consts()->size())
+            print_docstring(code->getConst(0), cur_indent + 1, mod);
+
+        PycCode::globals_t globs = code->getGlobals();
+        if (globs.size()) {
+            start_line(cur_indent + 1);
+            fprintf(pyc_output, "global ");
+            bool first = true;
+            PycCode::globals_t::iterator it;
+            for (it = globs.begin(); it != globs.end(); ++it) {
+                if (!first)
+                    fprintf(pyc_output, ", ");
+                fprintf(pyc_output, "%s", (*it)->value());
+                first = false;
+            }
+            fprintf(pyc_output, "\n");
         }
-        fprintf(pyc_output, "\n");
-        printGlobals = false;
+        printDocstringAndGlobals = false;
     }
 
     print_src(source, mod);
