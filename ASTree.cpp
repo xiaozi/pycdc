@@ -1332,6 +1332,8 @@ PycRef<ASTNode> BuildFromCode(PycRef<PycCode> code, PycModule* mod)
                 stack.push(new ASTFunction(code, defArgs));
             }
             break;
+        case Pyc::NOP:
+            break;
         case Pyc::POP_BLOCK:
             {
                 if (curblock->blktype() == ASTBlock::BLK_CONTAINER ||
@@ -2816,6 +2818,7 @@ void decompyle(PycRef<PycCode> code, PycModule* mod)
                 if (src->name()->isEqual("__name__") &&
                     dest->name()->isEqual("__module__")) {
                     // __module__ = __name__
+                    // Automatically added by Python 2.2.1 and later
                     clean->removeFirst();
                 }
             }

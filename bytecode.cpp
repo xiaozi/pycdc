@@ -164,7 +164,7 @@ bool Pyc::IsJumpOffsetArg(int opcode)
     return (opcode == Pyc::JUMP_FORWARD_A) || (opcode == Pyc::JUMP_IF_FALSE_A) ||
            (opcode == Pyc::JUMP_IF_TRUE_A) || (opcode == Pyc::SETUP_LOOP_A) ||
            (opcode == Pyc::SETUP_FINALLY_A) || (opcode == Pyc::SETUP_EXCEPT_A) ||
-           (opcode == Pyc::FOR_LOOP_A);
+           (opcode == Pyc::FOR_LOOP_A) || (opcode == Pyc::FOR_ITER_A);
 }
 
 bool Pyc::IsCompareArg(int opcode)
@@ -358,8 +358,7 @@ void bc_disasm(PycRef<PycCode> code, PycModule* mod, int indent)
             } else if (Pyc::IsVarNameArg(opcode)) {
                 fprintf(pyc_output, "%d: %s", operand, code->getVarName(operand)->value());
             } else if (Pyc::IsCellArg(opcode)) {
-                fprintf(pyc_output, "%d: ", operand);
-                print_const(code->getCellVar(operand), mod);
+                fprintf(pyc_output, "%d: %s", operand, code->getCellVar(operand)->value());
             } else if (Pyc::IsJumpOffsetArg(opcode)) {
                 fprintf(pyc_output, "%d (to %d)", operand, pos+operand);
             } else if (Pyc::IsCompareArg(opcode)) {
