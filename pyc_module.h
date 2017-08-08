@@ -27,6 +27,7 @@ enum PycMagic {
     MAGIC_3_3 = 0x0A0D0C9E,
     MAGIC_3_4 = 0x0A0D0CEE,
     MAGIC_3_5 = 0x0A0D0D16,
+    MAGIC_3_5_3 = 0x0A0D0D17,
     MAGIC_3_6 = 0x0A0D0D33,
 };
 
@@ -39,8 +40,8 @@ public:
     void loadFromFile(const char* filename);
     bool isValid() const { return (m_maj >= 0) && (m_min >= 0); }
 
-    unsigned int majorVer() const { return m_maj; }
-    unsigned int minorVer() const { return m_min; }
+    int majorVer() const { return m_maj; }
+    int minorVer() const { return m_min; }
 
     int verCompare(int maj, int min) const
     {
@@ -63,7 +64,7 @@ private:
     void setVersion(unsigned int magic);
 
 private:
-    short m_maj, m_min;
+    int m_maj, m_min;
     bool m_unicode;
 
     PycRef<PycCode> m_code;
