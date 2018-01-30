@@ -30,6 +30,7 @@ DECLARE_PYTHON(3, 3)
 DECLARE_PYTHON(3, 4)
 DECLARE_PYTHON(3, 5)
 DECLARE_PYTHON(3, 6)
+DECLARE_PYTHON(3, 7)
 
 const char* Pyc::OpcodeName(int opcode)
 {
@@ -93,6 +94,7 @@ int Pyc::ByteToOpcode(int maj, int min, int opcode)
         case 4: return python_34_map(opcode);
         case 5: return python_35_map(opcode);
         case 6: return python_36_map(opcode);
+        case 7: return python_37_map(opcode);
         }
         break;
     }
@@ -111,7 +113,8 @@ bool Pyc::IsNameArg(int opcode)
            (opcode == Pyc::IMPORT_NAME_A) || (opcode == Pyc::LOAD_ATTR_A) ||
            (opcode == Pyc::LOAD_GLOBAL_A) || (opcode == Pyc::LOAD_LOCAL_A) ||
            (opcode == Pyc::LOAD_NAME_A) || (opcode == Pyc::STORE_ATTR_A) ||
-           (opcode == Pyc::STORE_GLOBAL_A) || (opcode == Pyc::STORE_NAME_A);
+           (opcode == Pyc::STORE_GLOBAL_A) || (opcode == Pyc::STORE_NAME_A) ||
+           (opcode == Pyc::LOAD_METHOD_A);
 }
 
 bool Pyc::IsVarNameArg(int opcode)
@@ -142,7 +145,7 @@ bool Pyc::IsCompareArg(int opcode)
 void print_const(PycRef<PycObject> obj, PycModule* mod)
 {
     if (obj == NULL) {
-        fprintf(pyc_output, "<NULL>");
+        fputs("<NULL>", pyc_output);
         return;
     }
 
@@ -164,85 +167,85 @@ void print_const(PycRef<PycObject> obj, PycModule* mod)
     case PycObject::TYPE_TUPLE:
     case PycObject::TYPE_SMALL_TUPLE:
         {
-            fprintf(pyc_output, "(");
+            fputs("(", pyc_output);
             PycTuple::value_t values = obj.cast<PycTuple>()->values();
             PycTuple::value_t::const_iterator it = values.begin();
             if (it != values.end()) {
                 print_const(*it, mod);
                 while (++it != values.end()) {
-                    fprintf(pyc_output, ", ");
+                    fputs(", ", pyc_output);
                     print_const(*it, mod);
                 }
             }
             if (values.size() == 1)
-                fprintf(pyc_output, ",)");
+                fputs(",)", pyc_output);
             else
-                fprintf(pyc_output, ")");
+                fputs(")", pyc_output);
         }
         break;
     case PycObject::TYPE_LIST:
         {
-            fprintf(pyc_output, "[");
+            fputs("[", pyc_output);
             PycList::value_t values = obj.cast<PycList>()->values();
             PycList::value_t::const_iterator it = values.begin();
             if (it != values.end()) {
                 print_const(*it, mod);
                 while (++it != values.end()) {
-                    fprintf(pyc_output, ", ");
+                    fputs(", ", pyc_output);
                     print_const(*it, mod);
                 }
             }
-            fprintf(pyc_output, "]");
+            fputs("]", pyc_output);
         }
         break;
     case PycObject::TYPE_DICT:
         {
-            fprintf(pyc_output, "{");
+            fputs("{", pyc_output);
             PycDict::key_t keys = obj.cast<PycDict>()->keys();
             PycDict::value_t values = obj.cast<PycDict>()->values();
             PycDict::key_t::const_iterator ki = keys.begin();
             PycDict::value_t::const_iterator vi = values.begin();
             if (ki != keys.end()) {
                 print_const(*ki, mod);
-                fprintf(pyc_output, ": ");
+                fputs(": ", pyc_output);
                 print_const(*vi, mod);
                 while (++ki != keys.end()) {
                     ++vi;
-                    fprintf(pyc_output, ", ");
+                    fputs(", ", pyc_output);
                     print_const(*ki, mod);
-                    fprintf(pyc_output, ": ");
+                    fputs(": ", pyc_output);
                     print_const(*vi, mod);
                 }
             }
-            fprintf(pyc_output, "}");
+            fputs("}", pyc_output);
         }
         break;
     case PycObject::TYPE_SET:
         {
-            fprintf(pyc_output, "{");
+            fputs("{", pyc_output);
             PycSet::value_t values = obj.cast<PycSet>()->values();
             PycSet::value_t::const_iterator it = values.begin();
             if (it != values.end()) {
                 print_const(*it, mod);
                 while (++it != values.end()) {
-                    fprintf(pyc_output, ", ");
+                    fputs(", ", pyc_output);
                     print_const(*it, mod);
                 }
             }
-            fprintf(pyc_output, "}");
+            fputs("}", pyc_output);
         }
         break;
     case PycObject::TYPE_NONE:
-        fprintf(pyc_output, "None");
+        fputs("None", pyc_output);
         break;
     case PycObject::TYPE_TRUE:
-        fprintf(pyc_output, "True");
+        fputs("True", pyc_output);
         break;
     case PycObject::TYPE_FALSE:
-        fprintf(pyc_output, "False");
+        fputs("False", pyc_output);
         break;
     case PycObject::TYPE_ELLIPSIS:
-        fprintf(pyc_output, "...");
+        fputs("...", pyc_output);
         break;
     case PycObject::TYPE_INT:
         fprintf(pyc_output, "%d", obj.cast<PycInt>()->value());
@@ -315,7 +318,7 @@ void bc_disasm(PycRef<PycCode> code, PycModule* mod, int indent)
     int pos = 0;
     while (!source.atEof()) {
         for (int i=0; i<indent; i++)
-            fprintf(pyc_output, "    ");
+            fputs("    ", pyc_output);
         fprintf(pyc_output, "%-7d ", pos);   // Current bytecode position
 
         bc_next(source, mod, opcode, operand, pos);
@@ -342,6 +345,6 @@ void bc_disasm(PycRef<PycCode> code, PycModule* mod, int indent)
                 fprintf(pyc_output, "%d", operand);
             }
         }
-        fprintf(pyc_output, "\n");
+        fputs("\n", pyc_output);
     }
 }
