@@ -31,6 +31,7 @@ DECLARE_PYTHON(3, 4)
 DECLARE_PYTHON(3, 5)
 DECLARE_PYTHON(3, 6)
 DECLARE_PYTHON(3, 7)
+DECLARE_PYTHON(3, 8)
 
 const char* Pyc::OpcodeName(int opcode)
 {
@@ -95,6 +96,7 @@ int Pyc::ByteToOpcode(int maj, int min, int opcode)
         case 5: return python_35_map(opcode);
         case 6: return python_36_map(opcode);
         case 7: return python_37_map(opcode);
+        case 8: return python_38_map(opcode);
         }
         break;
     }
@@ -151,10 +153,10 @@ void print_const(PycRef<PycObject> obj, PycModule* mod)
 
     switch (obj->type()) {
     case PycObject::TYPE_STRING:
-        OutputString(obj.cast<PycString>(), (mod->majorVer() == 3) ? 'b' : 0);
+        OutputString(obj.cast<PycString>(), mod->strIsUnicode() ? 'b' : 0);
         break;
     case PycObject::TYPE_UNICODE:
-        OutputString(obj.cast<PycString>(), (mod->majorVer() == 3) ? 0 : 'u');
+        OutputString(obj.cast<PycString>(), mod->strIsUnicode() ? 0 : 'u');
         break;
     case PycObject::TYPE_STRINGREF:
     case PycObject::TYPE_INTERNED:
@@ -162,17 +164,20 @@ void print_const(PycRef<PycObject> obj, PycModule* mod)
     case PycObject::TYPE_ASCII_INTERNED:
     case PycObject::TYPE_SHORT_ASCII:
     case PycObject::TYPE_SHORT_ASCII_INTERNED:
-        OutputString(obj.cast<PycString>(), 0);
+        if (mod->majorVer() >= 3)
+            OutputString(obj.cast<PycString>(), 0);
+        else
+            OutputString(obj.cast<PycString>(), mod->strIsUnicode() ? 'b' : 0);
         break;
     case PycObject::TYPE_TUPLE:
     case PycObject::TYPE_SMALL_TUPLE:
         {
             fputs("(", pyc_output);
             PycTuple::value_t values = obj.cast<PycTuple>()->values();
-            PycTuple::value_t::const_iterator it = values.begin();
-            if (it != values.end()) {
+            auto it = values.cbegin();
+            if (it != values.cend()) {
                 print_const(*it, mod);
-                while (++it != values.end()) {
+                while (++it != values.cend()) {
                     fputs(", ", pyc_output);
                     print_const(*it, mod);
                 }
@@ -187,10 +192,10 @@ void print_const(PycRef<PycObject> obj, PycModule* mod)
         {
             fputs("[", pyc_output);
             PycList::value_t values = obj.cast<PycList>()->values();
-            PycList::value_t::const_iterator it = values.begin();
-            if (it != values.end()) {
+            auto it = values.cbegin();
+            if (it != values.cend()) {
                 print_const(*it, mod);
-                while (++it != values.end()) {
+                while (++it != values.cend()) {
                     fputs(", ", pyc_output);
                     print_const(*it, mod);
                 }
@@ -203,13 +208,13 @@ void print_const(PycRef<PycObject> obj, PycModule* mod)
             fputs("{", pyc_output);
             PycDict::key_t keys = obj.cast<PycDict>()->keys();
             PycDict::value_t values = obj.cast<PycDict>()->values();
-            PycDict::key_t::const_iterator ki = keys.begin();
-            PycDict::value_t::const_iterator vi = values.begin();
-            if (ki != keys.end()) {
+            auto ki = keys.cbegin();
+            auto vi = values.cbegin();
+            if (ki != keys.cend()) {
                 print_const(*ki, mod);
                 fputs(": ", pyc_output);
                 print_const(*vi, mod);
-                while (++ki != keys.end()) {
+                while (++ki != keys.cend()) {
                     ++vi;
                     fputs(", ", pyc_output);
                     print_const(*ki, mod);
@@ -224,10 +229,10 @@ void print_const(PycRef<PycObject> obj, PycModule* mod)
         {
             fputs("{", pyc_output);
             PycSet::value_t values = obj.cast<PycSet>()->values();
-            PycSet::value_t::const_iterator it = values.begin();
-            if (it != values.end()) {
+            auto it = values.cbegin();
+            if (it != values.cend()) {
                 print_const(*it, mod);
-                while (++it != values.end()) {
+                while (++it != values.cend()) {
                     fputs(", ", pyc_output);
                     print_const(*it, mod);
                 }

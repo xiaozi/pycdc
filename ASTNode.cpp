@@ -10,8 +10,7 @@ void ASTNodeList::removeLast()
 
 void ASTNodeList::removeFirst()
 {
-    list_t::iterator it = m_nodes.begin();
-    m_nodes.erase(it);
+    m_nodes.erase(m_nodes.cbegin());
 }
 
 
@@ -30,9 +29,9 @@ const char* ASTBinary::op_str() const
 {
     static const char* s_op_strings[] = {
         ".", " ** ", " * ", " / ", " // ", " % ", " + ", " - ",
-        " << ", " >> ", " & ", " ^ ", " | ", " and ", " or ",
+        " << ", " >> ", " & ", " ^ ", " | ", " and ", " or ", " @ ",
         " += ", " -= ", " *= ", " /= ", " %= ", " **= ", " <<= ",
-        " >>= ", " &= ", " ^= ", " |= ", " //= ", " @ ", " @= ",
+        " >>= ", " &= ", " ^= ", " |= ", " //= ", " @= ",
     };
     return s_op_strings[op()];
 }
@@ -53,7 +52,7 @@ const char* ASTCompare::op_str() const
 const char* ASTKeyword::word_str() const
 {
     static const char* s_word_strings[] = {
-        "break", "continue"
+        "pass", "break", "continue"
     };
     return s_word_strings[key()];
 }
@@ -69,8 +68,7 @@ void ASTBlock::removeLast()
 
 void ASTBlock::removeFirst()
 {
-    list_t::iterator it = m_nodes.begin();
-    m_nodes.erase(it);
+    m_nodes.erase(m_nodes.begin());
 }
 
 const char* ASTBlock::type_str() const

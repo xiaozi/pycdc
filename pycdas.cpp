@@ -86,6 +86,8 @@ void output_object(PycRef<PycObject> obj, PycModule* mod, int indent)
             iprintf(indent + 1, "File Name: %s\n", codeObj->fileName()->value());
             iprintf(indent + 1, "Object Name: %s\n", codeObj->name()->value());
             iprintf(indent + 1, "Arg Count: %d\n", codeObj->argCount());
+            if (mod->verCompare(3, 8) >= 0)
+                iprintf(indent + 1, "Pos Only Arg Count: %d\n", codeObj->posOnlyArgCount());
             if (mod->majorVer() >= 3)
                 iprintf(indent + 1, "KW Only Arg Count: %d\n", codeObj->kwOnlyArgCount());
             iprintf(indent + 1, "Locals: %d\n", codeObj->numLocals());
@@ -129,12 +131,12 @@ void output_object(PycRef<PycObject> obj, PycModule* mod, int indent)
         break;
     case PycObject::TYPE_STRING:
         iputs(indent, "");
-        OutputString(obj.cast<PycString>(), (mod->majorVer() == 3) ? 'b' : 0);
+        OutputString(obj.cast<PycString>(), mod->strIsUnicode() ? 'b' : 0);
         fputs("\n", pyc_output);
         break;
     case PycObject::TYPE_UNICODE:
         iputs(indent, "");
-        OutputString(obj.cast<PycString>(), (mod->majorVer() == 3) ? 0 : 'u');
+        OutputString(obj.cast<PycString>(), mod->strIsUnicode() ? 0 : 'u');
         fputs("\n", pyc_output);
         break;
     case PycObject::TYPE_STRINGREF:
@@ -144,25 +146,26 @@ void output_object(PycRef<PycObject> obj, PycModule* mod, int indent)
     case PycObject::TYPE_SHORT_ASCII:
     case PycObject::TYPE_SHORT_ASCII_INTERNED:
         iputs(indent, "");
-        OutputString(obj.cast<PycString>(), 0);
+        if (mod->majorVer() >= 3)
+            OutputString(obj.cast<PycString>(), 0);
+        else
+            OutputString(obj.cast<PycString>(), mod->strIsUnicode() ? 'b' : 0);
         fputs("\n", pyc_output);
         break;
     case PycObject::TYPE_TUPLE:
     case PycObject::TYPE_SMALL_TUPLE:
         {
             iputs(indent, "(\n");
-            PycTuple::value_t values = obj.cast<PycTuple>()->values();
-            for (PycTuple::value_t::const_iterator i = values.begin(); i != values.end(); i++)
-                output_object(*i, mod, indent + 1);
+            for (const auto& val : obj.cast<PycTuple>()->values())
+                output_object(val, mod, indent + 1);
             iputs(indent, ")\n");
         }
         break;
     case PycObject::TYPE_LIST:
         {
             iputs(indent, "[\n");
-            PycList::value_t values = obj.cast<PycList>()->values();
-            for (PycList::value_t::const_iterator i = values.begin(); i != values.end(); i++)
-                output_object(*i, mod, indent + 1);
+            for (const auto& val : obj.cast<PycList>()->values())
+                output_object(val, mod, indent + 1);
             iputs(indent, "]\n");
         }
         break;
@@ -184,9 +187,8 @@ void output_object(PycRef<PycObject> obj, PycModule* mod, int indent)
     case PycObject::TYPE_SET:
         {
             iputs(indent, "{\n");
-            PycSet::value_t values = obj.cast<PycSet>()->values();
-            for (PycSet::value_t::const_iterator i = values.begin(); i != values.end(); i++)
-                output_object(*i, mod, indent + 1);
+            for (const auto& val : obj.cast<PycSet>()->values())
+                output_object(val, mod, indent + 1);
             iputs(indent, "}\n");
         }
         break;

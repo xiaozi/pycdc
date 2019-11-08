@@ -11,13 +11,13 @@ public:
     PycInt(int value = 0, int type = TYPE_INT)
         : PycObject(type), m_value(value) { }
 
-    bool isEqual(PycRef<PycObject> obj) const
+    bool isEqual(PycRef<PycObject> obj) const override
     {
         return (type() == obj.type()) &&
                (m_value == obj.cast<PycInt>()->m_value);
     }
 
-    void load(class PycData* stream, class PycModule* mod);
+    void load(class PycData* stream, class PycModule* mod) override;
 
     int value() const { return m_value; }
 
@@ -30,9 +30,9 @@ public:
     PycLong(int type = TYPE_LONG)
         : PycObject(type), m_size(0) { }
 
-    bool isEqual(PycRef<PycObject> obj) const;
+    bool isEqual(PycRef<PycObject> obj) const override;
 
-    void load(class PycData* stream, class PycModule* mod);
+    void load(class PycData* stream, class PycModule* mod) override;
 
     int size() const { return m_size; }
     const std::list<int>& value() const { return m_value; }
@@ -47,35 +47,31 @@ private:
 class PycFloat : public PycObject {
 public:
     PycFloat(int type = TYPE_FLOAT)
-        : PycObject(type), m_value(0) { }
+        : PycObject(type) { }
 
-    ~PycFloat() { if (m_value) delete[] m_value; }
+    bool isEqual(PycRef<PycObject> obj) const override;
 
-    bool isEqual(PycRef<PycObject> obj) const;
+    void load(class PycData* stream, class PycModule* mod) override;
 
-    void load(class PycData* stream, class PycModule* mod);
-
-    const char* value() const { return m_value; }
+    const char* value() const { return m_value.c_str(); }
 
 private:
-    char* m_value;  // Floats are stored as strings
+    std::string m_value;  // Floats are stored as strings
 };
 
 class PycComplex : public PycFloat {
 public:
     PycComplex(int type = TYPE_COMPLEX)
-        : PycFloat(type), m_imag(0) { }
+        : PycFloat(type) { }
 
-    ~PycComplex() { if (m_imag) delete[] m_imag; }
+    bool isEqual(PycRef<PycObject> obj) const override;
 
-    bool isEqual(PycRef<PycObject> obj) const;
+    void load(class PycData* stream, class PycModule* mod) override;
 
-    void load(class PycData* stream, class PycModule* mod);
-
-    const char* imag() const { return m_imag; }
+    const char* imag() const { return m_imag.c_str(); }
 
 private:
-    char* m_imag;
+    std::string m_imag;
 };
 
 class PycCFloat : public PycObject {
@@ -83,13 +79,13 @@ public:
     PycCFloat(int type = TYPE_BINARY_FLOAT)
         : PycObject(type), m_value(0.0) { }
 
-    bool isEqual(PycRef<PycObject> obj) const
+    bool isEqual(PycRef<PycObject> obj) const override
     {
         return (type() == obj.type()) &&
                (m_value == obj.cast<PycCFloat>()->m_value);
     }
 
-    void load(class PycData* stream, class PycModule* mod);
+    void load(class PycData* stream, class PycModule* mod) override;
 
     double value() const { return m_value; }
 
@@ -102,13 +98,13 @@ public:
     PycCComplex(int type = TYPE_BINARY_COMPLEX)
         : PycCFloat(type), m_imag(0.0) { }
 
-    bool isEqual(PycRef<PycObject> obj) const
+    bool isEqual(PycRef<PycObject> obj) const override
     {
         return (PycCFloat::isEqual(obj)) &&
                (m_imag == obj.cast<PycCComplex>()->m_imag);
     }
 
-    void load(class PycData* stream, class PycModule* mod);
+    void load(class PycData* stream, class PycModule* mod) override;
 
     double imag() const { return m_imag; }
 

@@ -30,9 +30,8 @@ enum PycMagic {
     MAGIC_3_5_3 = 0x0A0D0D17,
     MAGIC_3_6 = 0x0A0D0D33,
     MAGIC_3_7 = 0x0A0D0D42,
+    MAGIC_3_8 = 0x0A0D0D55,
 };
-
-#define PYC_VERSION(maj, min)  MAGIC_##maj##_##min
 
 class PycModule {
 public:
@@ -52,6 +51,11 @@ public:
     }
 
     bool isUnicode() const { return m_unicode; }
+
+    bool strIsUnicode() const
+    {
+        return (m_maj >= 3) || (m_code->flags() & PycCode::CO_FUTURE_UNICODE_LITERALS) != 0;
+    }
 
     PycRef<PycCode> code() const { return m_code; }
 

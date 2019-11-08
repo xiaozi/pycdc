@@ -61,15 +61,14 @@ std::string PycLong::repr() const
 
     // Realign to 32 bits, since Python uses only 15
     std::list<unsigned> bits;
-    std::list<int>::const_iterator bit;
     int shift = 0, temp = 0;
-    for (bit = m_value.begin(); bit != m_value.end(); ++bit) {
-        temp |= unsigned(*bit & 0xFFFF) << shift;
+    for (auto bit : m_value) {
+        temp |= unsigned(bit & 0xFFFF) << shift;
         shift += 15;
         if (shift >= 32) {
             bits.push_back(temp);
             shift -= 32;
-            temp = unsigned(*bit & 0xFFFF) >> (15 - shift);
+            temp = unsigned(bit & 0xFFFF) >> (15 - shift);
         }
     }
     if (temp)
@@ -98,14 +97,12 @@ std::string PycLong::repr() const
 void PycFloat::load(PycData* stream, PycModule*)
 {
     int len = stream->getByte();
-    delete[] m_value;
-    if (len > 0) {
-        m_value = new char[len+1];
-        stream->getBuffer(len, m_value);
-        m_value[len] = 0;
-    } else {
-        m_value = 0;
-    }
+    if (len < 0)
+        throw std::bad_alloc();
+
+    m_value.resize(len);
+    if (len > 0)
+        stream->getBuffer(len, &m_value.front());
 }
 
 bool PycFloat::isEqual(PycRef<PycObject> obj) const
@@ -114,9 +111,7 @@ bool PycFloat::isEqual(PycRef<PycObject> obj) const
         return false;
 
     PycRef<PycFloat> floatObj = obj.cast<PycFloat>();
-    if (m_value == floatObj->m_value)
-        return true;
-    return (strcmp(m_value, floatObj->m_value) == 0);
+    return m_value == floatObj->m_value;
 }
 
 
@@ -126,14 +121,12 @@ void PycComplex::load(PycData* stream, PycModule* mod)
     PycFloat::load(stream, mod);
 
     int len = stream->getByte();
-    delete[] m_imag;
-    if (len > 0) {
-        m_imag = new char[len+1];
-        stream->getBuffer(len, m_imag);
-        m_imag[len] = 0;
-    } else {
-        m_imag = 0;
-    }
+    if (len < 0)
+        throw std::bad_alloc();
+
+    m_imag.resize(len);
+    if (len > 0)
+        stream->getBuffer(len, &m_imag.front());
 }
 
 bool PycComplex::isEqual(PycRef<PycObject> obj) const
@@ -142,9 +135,7 @@ bool PycComplex::isEqual(PycRef<PycObject> obj) const
         return false;
 
     PycRef<PycComplex> floatObj = obj.cast<PycComplex>();
-    if (m_imag == floatObj->m_imag)
-        return true;
-    return (strcmp(m_imag, floatObj->m_imag) == 0);
+    return m_imag == floatObj->m_imag;
 }
 
 
