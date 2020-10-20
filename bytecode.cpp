@@ -1,5 +1,6 @@
 #include "pyc_numeric.h"
 #include "bytecode.h"
+#include <cmath>
 
 #ifdef _MSC_VER
 #define snprintf _snprintf
@@ -32,6 +33,7 @@ DECLARE_PYTHON(3, 5)
 DECLARE_PYTHON(3, 6)
 DECLARE_PYTHON(3, 7)
 DECLARE_PYTHON(3, 8)
+DECLARE_PYTHON(3, 9)
 
 const char* Pyc::OpcodeName(int opcode)
 {
@@ -97,6 +99,7 @@ int Pyc::ByteToOpcode(int maj, int min, int opcode)
         case 6: return python_36_map(opcode);
         case 7: return python_37_map(opcode);
         case 8: return python_38_map(opcode);
+        case 9: return python_39_map(opcode);
         }
         break;
     }
@@ -266,7 +269,26 @@ void print_const(PycRef<PycObject> obj, PycModule* mod)
                                         obj.cast<PycComplex>()->imag());
         break;
     case PycObject::TYPE_BINARY_FLOAT:
-        fprintf(pyc_output, "%g", obj.cast<PycCFloat>()->value());
+        {
+            // Wrap any nan/inf values in float('').
+            double value = obj.cast<PycCFloat>()->value();
+            bool is_negative = std::signbit(value);
+            if (std::isnan(value)) {
+                if (is_negative) {
+                    fprintf(pyc_output, "float('-nan')");
+                } else {
+                    fprintf(pyc_output, "float('nan')");
+                }
+            } else if (std::isinf(value)) {
+                if (is_negative) {
+                    fprintf(pyc_output, "float('-inf')");
+                } else {
+                    fprintf(pyc_output, "float('inf')");
+                }
+            } else {
+                fprintf(pyc_output, "%g", value);
+            }
+        }
         break;
     case PycObject::TYPE_BINARY_COMPLEX:
         fprintf(pyc_output, "(%g+%gj)", obj.cast<PycCComplex>()->value(),
@@ -346,6 +368,14 @@ void bc_disasm(PycRef<PycCode> code, PycModule* mod, int indent)
                     fprintf(pyc_output, "%d (%s)", operand, cmp_strings[operand]);
                 else
                     fprintf(pyc_output, "%d (UNKNOWN)", operand);
+            } else if (opcode == Pyc::IS_OP_A) {
+                fprintf(pyc_output, "%d (%s)", operand, (operand == 0) ? "is"
+                                                      : (operand == 1) ? "is not"
+                                                      : "UNKNOWN");
+            } else if (opcode == Pyc::CONTAINS_OP_A) {
+                fprintf(pyc_output, "%d (%s)", operand, (operand == 0) ? "in"
+                                                      : (operand == 1) ? "not in"
+                                                      : "UNKNOWN");
             } else {
                 fprintf(pyc_output, "%d", operand);
             }

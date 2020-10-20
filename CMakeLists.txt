@@ -4,6 +4,18 @@ cmake_minimum_required(VERSION 3.1)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Debug options.
+option(ENABLE_BLOCK_DEBUG "Enable block debugging" OFF)
+option(ENABLE_STACK_DEBUG "Enable stack debugging" OFF)
+
+# Turn debug defs on if they're enabled.
+if (ENABLE_BLOCK_DEBUG)
+    add_definitions(-DBLOCK_DEBUG)
+endif()
+if (ENABLE_STACK_DEBUG)
+    add_definitions(-DSTACK_DEBUG)
+endif()
+
 # For generating the bytes tables
 find_package(PythonInterp REQUIRED)
 
@@ -15,9 +27,9 @@ elseif(MSVC)
 endif()
 
 set(PYTHON_VERSIONS
-    10 11    13 14 15 16        # Python 1.1 and 1.2 are marshal-identical
+    10 11    13 14 15 16            # Python 1.1 and 1.2 are marshal-identical
     20 21 22 23 24 25 26 27
-    30 31 32 33 34 35 36 37 38
+    30 31 32 33 34 35 36 37 38 39
 )
 
 foreach(ver ${PYTHON_VERSIONS})
