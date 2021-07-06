@@ -28,7 +28,7 @@ int main(int argc, char* argv[])
     const char* dispname = strrchr(argv[1], PATHSEP);
     dispname = (dispname == NULL) ? argv[1] : dispname + 1;
     fputs("#!/usr/bin/env python\n", pyc_output);
-    fputs("# visit http://tool.lu/pyc/ for more information\n", pyc_output);
+    fputs("# visit https://tool.lu/pyc/ for more information\n", pyc_output);
     // fprintf(pyc_output, "# File: %s (Python %d.%d%s)\n\n", dispname, mod.majorVer(), mod.minorVer(),
     //         (mod.majorVer() < 3 && mod.isUnicode()) ? " Unicode" : "");
     try {
